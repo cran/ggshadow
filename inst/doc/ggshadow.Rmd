@@ -1,0 +1,56 @@
+---
+title: "Shadow path, line and step"
+author: "Marc Menem"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{shadowtext introduction}
+  %\VignetteDepends{ggplot2}
+  %\usepackage[utf8]{inputenc}
+---
+
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = TRUE)
+
+library(ggplot2)
+library(ggshadow)
+```
+
+
+
+## shadow line: `geom_shadowline()` 
+
+The most simple use of `geom_shadowline()` is a simple replacement of `geom_line()` 
+
+```{r fig.height=7, fig.width=7}
+library(ggshadow)
+
+ggplot(economics_long, aes(date, value01, colour = variable)) + geom_shadowline()
+
+```
+
+## varying line color
+
+It is possible to draw lines with varying colors, and it is also possible to change the color, alpha and size of the shadow using `shadowcolor`, `shadowsize` and `shadowalpha`.
+
+```{r fig.height=7, fig.width=7}
+library(ggshadow)
+
+ggplot(economics_long, aes(date, value01, group = variable, colour=value01, shadowcolor='grey', shadowalpha=0.5, shadowsize=5*(1-value01))) + geom_shadowline()
+
+```
+
+## Shadow point example: `geom_shadowpoint()` 
+
+Example using `geom_shadowpoint()`.
+
+```{r fig.height=7, fig.width=7}
+ggplot(mtcars, aes(wt, mpg)) + geom_shadowpoint(aes( color = carb, shadowcolour = ifelse(vs == 1, 'red', 'blue') ))
+
+```
+
+
+
