@@ -1,17 +1,170 @@
 
-ScaleDiscreteIdentity <- getFromNamespace("ScaleDiscreteIdentity", "ggplot2")
+waiver <- function() 
+  structure(list(), class = "waiver")
 
-binned_scale <- getFromNamespace("binned_scale", "ggplot2")
-discrete_scale <- getFromNamespace("discrete_scale", "ggplot2")
-datetime_scale <- getFromNamespace("datetime_scale", "ggplot2")
-manual_scale <- getFromNamespace("manual_scale", "ggplot2")
-mid_rescaler <- getFromNamespace("mid_rescaler", "ggplot2")
-continuous_scale <- getFromNamespace("continuous_scale", "ggplot2")
-waiver <- getFromNamespace("waiver", "ggplot2")
-muted <- getFromNamespace("muted", "scales")
-binned_pal <- getFromNamespace("binned_pal", "ggplot2")
+is.waive <- function (x) 
+  inherits(x, "waiver")
+
+
+#' @importFrom ggplot2 continuous_scale
+#' @importFrom ggplot2 ScaleContinuous
+#' @importFrom ggplot2 ScaleContinuousDate
+#' @importFrom ggplot2 ScaleContinuousDatetime
+#' @importFrom scales pretty_breaks
+#' @importFrom scales date_format
+#' @importFrom scales date_trans
+#' @importFrom scales time_trans
+datetime_scale <- function(aesthetics, trans, palette,
+                           breaks = pretty_breaks(), minor_breaks = waiver(),
+                           labels = waiver(), date_breaks = waiver(),
+                           date_labels = waiver(),
+                           date_minor_breaks = waiver(), timezone = NULL,
+                           guide = "legend", ...) {
+
+
+  # Backward compatibility
+  if (is.character(breaks)) breaks <- date_breaks(breaks)
+  if (is.character(minor_breaks)) minor_breaks <- date_breaks(minor_breaks)
+
+  if (!is.waive(date_breaks)) {
+    breaks <- date_breaks(date_breaks)
+  }
+  if (!is.waive(date_minor_breaks)) {
+    minor_breaks <- date_breaks(date_minor_breaks)
+  }
+  if (!is.waive(date_labels)) {
+    labels <- function(self, x) {
+      tz <- if (is.null(self$timezone)) "UTC" else self$timezone
+      date_format(date_labels, tz)(x)
+    }
+  }
+
+  name <- switch(trans,
+    date = "date",
+    time = "datetime"
+  )
+
+  # x/y position aesthetics should use ScaleContinuousDate or
+  # ScaleContinuousDatetime; others use ScaleContinuous
+  if (all(aesthetics %in% c("x", "xmin", "xmax", "xend", "y", "ymin", "ymax", "yend"))) {
+    scale_class <- switch(
+      trans,
+      date = ScaleContinuousDate,
+      time = ScaleContinuousDatetime
+    )
+  } else {
+    scale_class <- ScaleContinuous
+  }
+
+  trans <- switch(trans,
+    date = date_trans(),
+    time = time_trans(timezone)
+  )
+
+  sc <- continuous_scale(
+    aesthetics,
+    name,
+    palette = palette,
+    breaks = breaks,
+    minor_breaks = minor_breaks,
+    labels = labels,
+    guide = guide,
+    trans = trans,
+    ...,
+    super = scale_class
+  )
+  sc$timezone <- timezone
+  sc
+}
+
+
+
+#' @importFrom ggplot2 waiver
+#' @importFrom ggplot2 discrete_scale
+#' @importFrom cli cli_abort
+#' @importFrom rlang is_missing
+manual_scale <- function(aesthetic, values = NULL, breaks = waiver(), ..., limits = NULL) {
+  # check for missing `values` parameter, in lieu of providing
+  # a default to all the different scale_*_manual() functions
+  if (is_missing(values)) {
+    values <- NULL
+  } else {
+    force(values)
+  }
+
+  if (is.null(limits) && !is.null(names(values))) {
+    # Limits as function to access `values` names later on (#4619)
+    limits <- function(x){
+      a <- intersect(x, names(values))
+      if (is.null(a)){
+          character()
+      } else {
+          a
+      }
+    }
+  }
+
+  # order values according to breaks
+  if (is.vector(values) && is.null(names(values)) && !is.waive(breaks) &&
+      !is.null(breaks) && !is.function(breaks)) {
+    if (length(breaks) <= length(values)) {
+      names(values) <- breaks
+    } else {
+      names(values) <- breaks[1:length(values)]
+    }
+  }
+
+  pal <- function(n) {
+    if (n > length(values)) {
+      cli_abort("Insufficient values in manual scale. {n} needed but only {length(values)} provided.")
+    }
+    values
+  }
+  discrete_scale(aesthetic, "manual", pal, breaks = breaks, limits = limits, ...)
+}
+
+#' @importFrom scales rescale_mid
+mid_rescaler <- function(mid) {
+  function(x, to = c(0, 1), from = range(x, na.rm = TRUE)) {
+    rescale_mid(x, to, from, mid)
+  }
+}
+
+
+
+#### binned_pal <- function (palette) {
+####     function(x) {
+####         palette(length(x))
+####     }
+#### }
+####
+####
+#### #' @rdname scale_brewer
+#### #' @importFrom scales brewer_pal
+#### #' @importFrom ggplot2 binned_scale
+#### #' @export
+#### #'
+#### #' @examples
+#### #' library( ggplot2 )
+#### #' p <- ggplot(mtcars, aes(wt, mpg, shadowcolor=as.factor(gear)))
+#### #' p + geom_shadowpoint() + scale_shadowcolour_fermenter()
+#### #'
+#### #'
+#### scale_shadowcolour_fermenter <- function(..., type = "seq", palette = 1, direction = -1, na.value = "grey50", guide = "coloursteps", aesthetics = "shadowcolour") {
+####   # warn about using a qualitative brewer palette to generate the gradient
+####   type <- match.arg(type, c("seq", "div", "qual"))
+####   if (type == "qual") {
+####     warn("Using a discrete colour palette in a binned scale.\n  Consider using type = \"seq\" or type = \"div\" instead")
+####   }
+####   binned_scale(aesthetics, "fermenter", binned_pal(brewer_pal(type, palette, direction)), na.value = na.value, guide = guide, ...)
+#### }
+
+
+
 
 #' @rdname scale_colour_hue
+#' @importFrom scales hue_pal
+#' @importFrom ggplot2 discrete_scale
 #'
 #' @examples
 #' library( ggplot2 )
@@ -21,7 +174,7 @@ binned_pal <- getFromNamespace("binned_pal", "ggplot2")
 #' @export
 scale_shadowcolour_hue <- function(..., h = c(0, 360) + 15, c = 100, l = 65, h.start = 0,
                                         direction = 1, na.value = "grey50", aesthetics = "shadowcolour") {
-  discrete_scale(aesthetics, "hue", scales::hue_pal(h, c, l, h.start, direction),
+  discrete_scale(aesthetics, "hue", hue_pal(h, c, l, h.start, direction),
                  na.value = na.value, ...)
 }
 
@@ -36,6 +189,7 @@ scale_shadowcolour_hue <- function(..., h = c(0, 360) + 15, c = 100, l = 65, h.s
 scale_shadowcolour_discrete <- scale_shadowcolour_hue
 
 #' @rdname scale_brewer
+#' @importFrom scales brewer_pal
 #'
 #' @examples
 #' library( ggplot2 )
@@ -44,10 +198,13 @@ scale_shadowcolour_discrete <- scale_shadowcolour_hue
 #'
 #' @export
 scale_shadowcolour_brewer <- function(..., type = "seq", palette = 1, direction = 1, aesthetics = "shadowcolour") {
-  discrete_scale(aesthetics, "brewer", scales::brewer_pal(type, palette, direction), ...)
+  discrete_scale(aesthetics, "brewer", brewer_pal(type, palette, direction), ...)
 }
 
 #' @rdname scale_brewer
+#' @importFrom scales brewer_pal
+#' @importFrom scales gradient_n_pal
+#' @importFrom ggplot2 continuous_scale
 #'
 #' @examples
 #' library( ggplot2 )
@@ -62,30 +219,18 @@ scale_shadowcolour_distiller <- function(..., type = "seq", palette = 1, directi
     warn("Using a discrete colour palette in a continuous scale.\n  Consider using type = \"seq\" or type = \"div\" instead")
   }
   continuous_scale(aesthetics, "distiller",
-                   scales::gradient_n_pal(scales::brewer_pal(type, palette, direction)(7), values, space), na.value = na.value, guide = guide, ...)
+                   gradient_n_pal(brewer_pal(type, palette, direction)(7), values, space), na.value = na.value, guide = guide, ...)
   # NB: 6-7 colours per palette gives nice gradients; more results in more saturated colours which do not look as good
   # For diverging scales, you need an odd number to make sure the mid-point is in the center
 }
 
-#' @rdname scale_brewer
-#' @export
-#'
-#' @examples
-#' library( ggplot2 )
-#' p <- ggplot(mtcars, aes(wt, mpg, shadowcolor=as.factor(gear)))
-#' p + geom_shadowpoint() + scale_shadowcolour_brewer()
-#'
-#'
-scale_shadowcolour_fermenter <- function(..., type = "seq", palette = 1, direction = -1, na.value = "grey50", guide = "coloursteps", aesthetics = "shadowcolour") {
-  # warn about using a qualitative brewer palette to generate the gradient
-  type <- match.arg(type, c("seq", "div", "qual"))
-  if (type == "qual") {
-    warn("Using a discrete colour palette in a binned scale.\n  Consider using type = \"seq\" or type = \"div\" instead")
-  }
-  binned_scale(aesthetics, "fermenter", binned_pal(scales::brewer_pal(type, palette, direction)), na.value = na.value, guide = guide, ...)
-}
+
+
 
 #' @rdname scale_identity
+#' @importFrom scales identity_pal
+#' @importFrom ggplot2 ScaleDiscreteIdentity
+#' @importFrom ggplot2 discrete_scale
 #' @export
 #'
 #' @examples
@@ -95,7 +240,7 @@ scale_shadowcolour_fermenter <- function(..., type = "seq", palette = 1, directi
 #'
 #'
 scale_shadowcolour_identity <- function(..., guide = "none", aesthetics = "shadowcolour") {
-  sc <- discrete_scale(aesthetics, "identity", scales::identity_pal(), ..., guide = guide,
+  sc <- discrete_scale(aesthetics, "identity", identity_pal(), ..., guide = guide,
                        super = ScaleDiscreteIdentity)
 
   sc
@@ -145,6 +290,8 @@ scale_shadowcolour_binned <- function(...,
 }
 
 #' @rdname scale_colour_steps
+#' @importFrom scales seq_gradient_pal
+#' @importFrom ggplot2 binned_scale
 #' @export
 #'
 #' @examples
@@ -154,11 +301,14 @@ scale_shadowcolour_binned <- function(...,
 #'
 scale_shadowcolour_steps <- function(..., low = "#132B43", high = "#56B1F7", space = "Lab",
                                na.value = "grey50", guide = "coloursteps", aesthetics = "shadowcolour") {
-  binned_scale(aesthetics, "steps", scales::seq_gradient_pal(low, high, space),
+  binned_scale(aesthetics, "steps", seq_gradient_pal(low, high, space),
                na.value = na.value, guide = guide, ...)
 }
 
 #' @rdname scale_colour_steps
+#' @importFrom scales div_gradient_pal
+#' @importFrom scales muted
+#' @importFrom ggplot2 binned_scale
 #' @export
 #'
 #' @examples
@@ -169,11 +319,13 @@ scale_shadowcolour_steps <- function(..., low = "#132B43", high = "#56B1F7", spa
 scale_shadowcolour_steps2 <- function(..., low = muted("red"), mid = "white", high = muted("blue"),
                                 midpoint = 0, space = "Lab", na.value = "grey50", guide = "coloursteps",
                                 aesthetics = "shadowcolour") {
-  binned_scale(aesthetics, "steps2", scales::div_gradient_pal(low, mid, high, space),
+  binned_scale(aesthetics, "steps2", div_gradient_pal(low, mid, high, space),
                na.value = na.value, guide = guide, rescaler = mid_rescaler(mid = midpoint), ...)
 }
 
 #' @rdname scale_colour_steps
+#' @importFrom scales gradient_n_pal
+#' @importFrom ggplot2 binned_scale
 #' @export
 #'
 #' @examples
@@ -186,10 +338,12 @@ scale_shadowcolour_stepsn <- function(..., colours, values = NULL, space = "Lab"
                                 guide = "coloursteps", aesthetics = "shadowcolour", colors) {
   colours <- if (missing(colours)) colors else colours
   binned_scale(aesthetics, "stepsn",
-               scales::gradient_n_pal(colours, values, space), na.value = na.value, guide = guide, ...)
+               gradient_n_pal(colours, values, space), na.value = na.value, guide = guide, ...)
 }
 
 #' @rdname scale_gradient
+#' @importFrom scales seq_gradient_pal
+#' @importFrom ggplot2 continuous_scale
 #' @export
 #'
 #' @examples
@@ -199,11 +353,14 @@ scale_shadowcolour_stepsn <- function(..., colours, values = NULL, space = "Lab"
 #'
 scale_shadowcolour_gradient <- function(..., low = "#132B43", high = "#56B1F7", space = "Lab",
                                   na.value = "grey50", guide = "colourbar", aesthetics = "shadowcolour") {
-  continuous_scale(aesthetics, "gradient", scales::seq_gradient_pal(low, high, space),
+  continuous_scale(aesthetics, "gradient", seq_gradient_pal(low, high, space),
                    na.value = na.value, guide = guide, ...)
 }
 
 #' @rdname scale_gradient
+#' @importFrom scales div_gradient_pal
+#' @importFrom scales muted
+#' @importFrom ggplot2 continuous_scale
 #' @export
 #'
 #' @examples
@@ -215,11 +372,13 @@ scale_shadowcolour_gradient2 <- function(..., low = muted("red"), mid = "white",
                                    midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar",
                                    aesthetics = "shadowcolour") {
   continuous_scale(aesthetics, "gradient2",
-                   scales::div_gradient_pal(low, mid, high, space), na.value = na.value, guide = guide, ...,
+                   div_gradient_pal(low, mid, high, space), na.value = na.value, guide = guide, ...,
                    rescaler = mid_rescaler(mid = midpoint))
 }
 
 #' @rdname scale_gradient
+#' @importFrom scales gradient_n_pal
+#' @importFrom ggplot2 continuous_scale
 #' @export
 #'
 #' @examples
@@ -233,10 +392,11 @@ scale_shadowcolour_gradientn <- function(..., colours, values = NULL, space = "L
   colours <- if (missing(colours)) colors else colours
 
   continuous_scale(aesthetics, "gradientn",
-                   scales::gradient_n_pal(colours, values, space), na.value = na.value, guide = guide, ...)
+                   gradient_n_pal(colours, values, space), na.value = na.value, guide = guide, ...)
 }
 
 #' @rdname scale_gradient
+#' @importFrom scales seq_gradient_pal
 #' @export
 #'
 #' @examples
@@ -253,7 +413,7 @@ scale_shadowcolour_datetime <- function(...,
   datetime_scale(
     "shadowcolour",
     "time",
-    palette = scales::seq_gradient_pal(low, high, space),
+    palette = seq_gradient_pal(low, high, space),
     na.value = na.value,
     guide = guide,
     ...
@@ -261,6 +421,7 @@ scale_shadowcolour_datetime <- function(...,
 }
 
 #' @rdname scale_gradient
+#' @importFrom scales seq_gradient_pal
 #' @export
 #'
 #' @examples
@@ -277,7 +438,7 @@ scale_shadowcolour_date <- function(...,
   datetime_scale(
     "shadowcolour",
     "date",
-    palette = scales::seq_gradient_pal(low, high, space),
+    palette = seq_gradient_pal(low, high, space),
     na.value = na.value,
     guide = guide,
     ...
@@ -285,6 +446,8 @@ scale_shadowcolour_date <- function(...,
 }
 
 #' @rdname scale_grey
+#' @importFrom scales grey_pal
+#' @importFrom ggplot2 discrete_scale
 #' @export
 #'
 #' @examples
@@ -294,11 +457,13 @@ scale_shadowcolour_date <- function(...,
 #'
 #'
 scale_shadowcolour_grey <- function(..., start = 0.2, end = 0.8, na.value = "red", aesthetics = "shadowcolour") {
-  discrete_scale(aesthetics, "grey", scales::grey_pal(start, end),
+  discrete_scale(aesthetics, "grey", grey_pal(start, end),
                  na.value = na.value, ...)
 }
 
 #' @rdname scale_viridis
+#' @importFrom scales viridis_pal
+#' @importFrom ggplot2 discrete_scale
 #' @export
 #'
 #' @examples
@@ -311,13 +476,16 @@ scale_shadowcolour_viridis_d <- function(..., alpha = 1, begin = 0, end = 1,
   discrete_scale(
     aesthetics,
     "viridis_d",
-    scales::viridis_pal(alpha, begin, end, direction, option),
+    viridis_pal(alpha, begin, end, direction, option),
     ...
   )
 
 }
 
 #' @rdname scale_viridis
+#' @importFrom scales viridis_pal
+#' @importFrom scales gradient_n_pal
+#' @importFrom ggplot2 continuous_scale
 #' @export
 #'
 #' @examples
@@ -332,8 +500,8 @@ scale_shadowcolour_viridis_c <- function(..., alpha = 1, begin = 0, end = 1,
   continuous_scale(
     aesthetics,
     "viridis_c",
-    scales::gradient_n_pal(
-      scales::viridis_pal(alpha, begin, end, direction, option)(6),
+    gradient_n_pal(
+      viridis_pal(alpha, begin, end, direction, option)(6),
       values,
       space
     ),
@@ -344,6 +512,9 @@ scale_shadowcolour_viridis_c <- function(..., alpha = 1, begin = 0, end = 1,
 }
 
 #' @rdname scale_viridis
+#' @importFrom scales gradient_n_pal
+#' @importFrom scales viridis_pal
+#' @importFrom ggplot2 binned_scale
 #' @export
 #'
 #' @examples
@@ -358,8 +529,8 @@ scale_shadowcolour_viridis_b <- function(..., alpha = 1, begin = 0, end = 1,
   binned_scale(
     aesthetics,
     "viridis_b",
-    scales::gradient_n_pal(
-      scales::viridis_pal(alpha, begin, end, direction, option)(6),
+    gradient_n_pal(
+      viridis_pal(alpha, begin, end, direction, option)(6),
       values,
       space
     ),
@@ -380,6 +551,7 @@ scale_shadowcolour_viridis_b <- function(..., alpha = 1, begin = 0, end = 1,
 scale_shadowcolour_ordinal <- scale_shadowcolour_viridis_d
 
 #' @rdname scale_manual
+#' @importFrom ggplot2 waiver
 #' @export
 #'
 #' @examples

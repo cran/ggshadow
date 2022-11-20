@@ -53,6 +53,8 @@ geom_shadowpoint <- function(mapping = NULL, data = NULL,
 #' @importFrom glue glue
 #' @importFrom rlang warn
 #' @importFrom ggplot2 Geom
+#' @importFrom stats complete.cases
+#' @importFrom grid pointsGrob
 #' @format NULL
 #' @usage NULL
 #' @export
@@ -70,7 +72,7 @@ GeomShadowPoint <- ggproto("GeomShadowPoint", Geom,
     # print( data %>% as.tbl )
     # cat('Handle NA\n')
 
-    complete <- stats::complete.cases(data[c("x", "y", "size", "colour")])
+    complete <- complete.cases(data[c("x", "y", "size", "colour")])
     kept <- complete
     data <- data[kept, ]
 
@@ -107,7 +109,7 @@ GeomShadowPoint <- ggproto("GeomShadowPoint", Geom,
     # print( coords %>% as.tbl, n=Inf  )
     # print( alpha(coords$fill, ifelse( is.na(coords$fill), NA, coords$shadowcolour)) )
 
-    grid::pointsGrob(
+    pointsGrob(
       coords$x, coords$y,
       pch = coords$shape,
       gp = gpar(

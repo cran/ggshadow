@@ -100,6 +100,12 @@ geom_shadowpath <- function(mapping = NULL, data = NULL,
 #' @importFrom ggplot2 ggproto
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 Geom
+#' @importFrom ggplot2 draw_key_path
+#' @importFrom vctrs new_data_frame
+#' @importFrom stats complete.cases
+#' @importFrom stats ave
+#' @importFrom grid segmentsGrob
+#' @importFrom grid polylineGrob
 #' @format NULL
 #' @usage NULL
 #' @export
@@ -114,8 +120,8 @@ GeomShadowPath <- ggproto("GeomShadowPath", Geom,
                       # print( data %>% as.tbl )
                       # cat('Handle NA\n')
 
-                      complete <- stats::complete.cases(data[c("x", "y", "size", "colour", "linetype")])
-                      kept <- stats::ave(complete, data$group, FUN = keep_mid_true)
+                      complete <- complete.cases(data[c("x", "y", "size", "colour", "linetype")])
+                      kept <- ave(complete, data$group, FUN = keep_mid_true)
                       data <- data[kept, ]
 
                       if (!all(kept) && !params$na.rm) {
@@ -142,17 +148,17 @@ GeomShadowPath <- ggproto("GeomShadowPath", Geom,
                       munched <- coord_munch(coord, data, panel_params)
 
                       # Silently drop lines with less than two points, preserving order
-                      rows <- stats::ave(seq_len(nrow(munched)), munched$group, FUN = length)
+                      rows <- ave(seq_len(nrow(munched)), munched$group, FUN = length)
                       munched <- munched[rows >= 2, ]
                       if (nrow(munched) < 2) return(zeroGrob())
 
                       # Work out whether we should use lines or segments
                       attr <- dapply(munched, "group", function(df) {
                         linetype <- unique(df$linetype)
-                        new_data_frame(list(
+                        new_data_frame(
                           solid = identical(linetype, 1) || identical(linetype, "solid"),
                           constant = nrow(unique(df[, c("alpha", "colour","size", "linetype", 'shadowcolour', 'shadowsize', 'shadowalpha')])) == 1
-                        ), n = 1)
+                        )
                       })
                       solid_lines <- all(attr$solid)
                       constant <- all(attr$constant)
@@ -189,7 +195,7 @@ GeomShadowPath <- ggproto("GeomShadowPath", Geom,
 
                         # print( munched %>% as.tbl, n=50 )
 
-                        grid::segmentsGrob(
+                        segmentsGrob(
                           munched$x[!munched$end],
                           munched$y[!munched$end],
                           munched$x[!munched$start],
@@ -225,7 +231,7 @@ GeomShadowPath <- ggproto("GeomShadowPath", Geom,
 
                         aph <- alpha( munched$colour[munched$start], munched$alpha[munched$start] )
 
-                        grid::polylineGrob(
+                        polylineGrob(
                           munched$x, munched$y, id = munched$id,
                           default.units = "native", arrow = arrow,
                           gp = gpar(
@@ -242,7 +248,7 @@ GeomShadowPath <- ggproto("GeomShadowPath", Geom,
                       }
                     },
 
-                    draw_key = ggplot2::draw_key_path
+                    draw_key = draw_key_path
 )
 
 
@@ -329,7 +335,6 @@ GeomShadowStep <- ggproto("GeomShadowStep", GeomShadowPath,
 keep_mid_true <- getFromNamespace("keep_mid_true", "ggplot2")
 dapply <- getFromNamespace("dapply", "ggplot2")
 stairstep <- getFromNamespace("stairstep", "ggplot2")
-new_data_frame <- getFromNamespace("new_data_frame", "ggplot2")
 # draw_key_path <- getFromNamespace("draw_key_path", "ggplot2")
 
 

@@ -4,7 +4,6 @@
 \alias{scale_brewer}
 \alias{scale_shadowcolour_brewer}
 \alias{scale_shadowcolour_distiller}
-\alias{scale_shadowcolour_fermenter}
 \title{Sequential, diverging and qualitative colour scales from colorbrewer.org}
 \usage{
 scale_shadowcolour_brewer(
@@ -26,30 +25,21 @@ scale_shadowcolour_distiller(
   guide = "colourbar",
   aesthetics = "shadowcolour"
 )
-
-scale_shadowcolour_fermenter(
-  ...,
-  type = "seq",
-  palette = 1,
-  direction = -1,
-  na.value = "grey50",
-  guide = "coloursteps",
-  aesthetics = "shadowcolour"
-)
 }
 \arguments{
 \item{...}{Other arguments passed on to [discrete_scale()], [continuous_scale()],
 or [binned_scale()], for `brewer`, `distiller`, and `fermenter` variants
 respectively, to control name, limits, breaks, labels and so forth.}
 
-\item{type}{One of seq (sequential), div (diverging) or qual (qualitative)}
+\item{type}{One of "seq" (sequential), "div" (diverging) or "qual"
+(qualitative)}
 
 \item{palette}{If a string, will use that named palette. If a number, will index into
 the list of palettes of appropriate `type`. The list of available palettes can found
 in the Palettes section.}
 
 \item{direction}{Sets the order of colours in the scale. If 1, the default,
-colours are as output by \code{\link[RColorBrewer:brewer.pal]{RColorBrewer::brewer.pal()}}. If -1, the
+colours are as output by \code{\link[RColorBrewer:ColorBrewer]{RColorBrewer::brewer.pal()}}. If -1, the
 order of colours is reversed.}
 
 \item{aesthetics}{Character string or vector of character strings listing the
@@ -98,7 +88,7 @@ The following palettes are available for use with these scales:
   \item{Sequential}{Blues, BuGn, BuPu, GnBu, Greens, Greys, Oranges,
      OrRd, PuBu, PuBuGn, PuRd, Purples, RdPu, Reds, YlGn, YlGnBu, YlOrBr, YlOrRd}
 }
-Modify the palette through the `palette` arguement.
+Modify the palette through the `palette` argument.
 }
 
 \examples{
@@ -109,11 +99,6 @@ p + geom_shadowpoint() + scale_shadowcolour_brewer()
 library( ggplot2 )
 p <- ggplot(mtcars, aes(wt, mpg, shadowcolor=gear))
 p + geom_shadowpoint() + scale_shadowcolour_distiller() + guides(shadowcolor='none')
-
-library( ggplot2 )
-p <- ggplot(mtcars, aes(wt, mpg, shadowcolor=as.factor(gear)))
-p + geom_shadowpoint() + scale_shadowcolour_brewer()
-
 
 }
 \seealso{

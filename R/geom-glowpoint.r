@@ -54,6 +54,8 @@ geom_glowpoint <- function(mapping = NULL, data = NULL,
 #' @importFrom glue glue
 #' @importFrom rlang warn
 #' @importFrom ggplot2 Geom
+#' @importFrom stats complete.cases
+#' @importFrom grid pointsGrob
 #' @format NULL
 #' @usage NULL
 #' @export
@@ -71,7 +73,7 @@ GeomGlowPoint <- ggproto("GeomGlowPoint", Geom,
     # print( data %>% as.tbl )
     # cat('Handle NA\n')
 
-    complete <- stats::complete.cases(data[c("x", "y", "size", "colour")])
+    complete <- complete.cases(data[c("x", "y", "size", "colour")])
     kept <- complete
     data <- data[kept, ]
 
@@ -112,7 +114,7 @@ GeomGlowPoint <- ggproto("GeomGlowPoint", Geom,
     coords <- rbind( coords.s, coords )[, c( 'x', 'y', 'group', 'shape', 'colour', 'size', 'fill', 'alpha', 'stroke' )]
     # print( coords %>% as.tbl, n=Inf  )
 
-    grid::pointsGrob(
+    pointsGrob(
       coords$x, coords$y,
       pch = coords$shape,
       gp = gpar(

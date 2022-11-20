@@ -98,6 +98,14 @@ geom_glowpath <- function(mapping = NULL, data = NULL,
 #' @importFrom ggplot2 ggproto
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 Geom
+#' @importFrom ggplot2 draw_key_path
+#' @importFrom vctrs new_data_frame
+#' @importFrom stats complete.cases
+#' @importFrom stats ave
+#' @importFrom grid segmentsGrob
+#' @importFrom grid polylineGrob
+#' @importFrom grid gList
+#' @importFrom grid grobTree
 #' @format NULL
 #' @usage NULL
 #' @export
@@ -125,8 +133,8 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                       # print( data %>% as.tbl )
                       # cat('Handle NA\n')
 
-                      complete <- stats::complete.cases(data[c("x", "y", "size", "colour", "linetype")])
-                      kept <- stats::ave(complete, data$group, FUN = keep_mid_true)
+                      complete <- complete.cases(data[c("x", "y", "size", "colour", "linetype")])
+                      kept <- ave(complete, data$group, FUN = keep_mid_true)
                       data <- data[kept, ]
 
                       if (!all(kept) && !params$na.rm) {
@@ -162,17 +170,17 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                       # print( munched %>% as_tibble )
 
                       # Silently drop lines with less than two points, preserving order
-                      rows <- stats::ave(seq_len(nrow(munched)), munched$group, FUN = length)
+                      rows <- ave(seq_len(nrow(munched)), munched$group, FUN = length)
                       munched <- munched[rows >= 2, ]
                       if (nrow(munched) < 2) return(zeroGrob())
 
                       # Work out whether we should use lines or segments
                       attr <- dapply(munched, "group", function(df) {
                         linetype <- unique(df$linetype)
-                        new_data_frame(list(
+                        new_data_frame(
                           solid = identical(linetype, 1) || identical(linetype, "solid"),
                           constant = nrow(unique(df[, c("alpha", "colour","size", "linetype", 'shadowcolour', 'shadowsize', 'shadowalpha', 'fill')])) == 1
-                        ), n = 1)
+                        )
                       })
                       solid_lines <- all(attr$solid)
                       constant <- all(attr$constant)
@@ -210,7 +218,7 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
 
                         # print( munched %>% as.tbl, n=50 )
 
-                        grid::segmentsGrob(
+                        segmentsGrob(
                           munched$x[!munched$end],
                           munched$y[!munched$end],
                           munched$x[!munched$start],
@@ -248,7 +256,7 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
 
                         aph <- alpha( munched$colour[munched$start], munched$alpha[munched$start] )
 
-                        g_lines <- grid::polylineGrob(
+                        g_lines <- polylineGrob(
                           munched$x, munched$y, id = munched$id,
                           default.units = "native", arrow = arrow,
                           gp = gpar(
@@ -266,7 +274,7 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                         if (!is.na(munched.i$fill[1])){
                           grl <- unique(munched.i$group)
 
-                          polys <- grid::gList(g_lines)
+                          polys <- gList(g_lines)
                           for( gr in grl){
                             munched.g <- subset(munched.i, group == gr)
                             fillcolour <- munched.g$fill[1]
@@ -279,7 +287,7 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                             maxx <- max( munched.g$x )
                             miny <- munched.g$ymin[1]
 
-                            g_poly <- grid::polygonGrob(
+                            g_poly <- polygonGrob(
                               c(minx, munched.g$x, maxx),
                               c(miny, munched.g$y, miny),
                               default.units = "native",
@@ -289,12 +297,12 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                               )
                             )
 
-                            polys <- grid::gList( polys, g_poly )
+                            polys <- gList( polys, g_poly )
                           }
 
                           # str( polys )
 
-                          ggname("geom_glowline", grid::grobTree(polys))
+                          ggname("geom_glowline", grobTree(polys))
                         } else {
                           # cat(crayon::red('No fill colour\n'))
                           ggname("geom_glowline", g_lines)
@@ -303,7 +311,7 @@ GeomGlowPath <- ggproto("GeomGlowPath", Geom,
                       }
                     },
 
-                    draw_key = ggplot2::draw_key_path
+                    draw_key = draw_key_path
 )
 
 
@@ -397,7 +405,6 @@ GeomGlowStep <- ggproto("GeomGlowStep", GeomGlowPath,
 keep_mid_true <- getFromNamespace("keep_mid_true", "ggplot2")
 dapply <- getFromNamespace("dapply", "ggplot2")
 stairstep <- getFromNamespace("stairstep", "ggplot2")
-new_data_frame <- getFromNamespace("new_data_frame", "ggplot2")
 ggname <- getFromNamespace("ggname", "ggplot2")
 # draw_key_path <- getFromNamespace("draw_key_path", "ggplot2")
 
